@@ -24,8 +24,8 @@ class freebuf2Spider(scrapy.Spider):
         item['date'] = response.xpath("//div[@class='property']/span[@class='time']/text()").extract()
         item['tags'] = response.xpath("//span[@class='tags']/a/text()").extract()
         with open('test_file', 'a') as f:
-            title = item['title'][0].encode('utf-8')
+            title = item['title'][0].strip().encode('utf-8')
             url = item['url'][0].encode('utf-8')
-            f.write(title)
+            f.write(title + '\n')
             f.write(url)
         yield item
