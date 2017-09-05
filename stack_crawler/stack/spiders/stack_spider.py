@@ -2,9 +2,10 @@ import scrapy
 from scrapy import Spider
 from scrapy.selector import Selector
 from stack.items import StackItem
-import redis
+from confluent_kafka import Producer
 
-r = redis.StrictRedis(host='localhost', port=6379, db=0)
+p = Producer({'bootstrap.servers': 'localhost:9092'})
+topic = "stackoverflow"
 url_prefix = "http://www.stackoverflow.com"
 class StackSpider(Spider):
     name = "stack"
@@ -21,5 +22,6 @@ class StackSpider(Spider):
             item['url'] = question.xpath('a[@class="question-hyperlink"]/@href').extract()[0]
             title = ''.join(item['title']).strip().encode('utf-8')
             url = url_prefix + ''.join(item['url']).strip().encode('utf-8')
-            r.set(title, url)
+            p.produce(topic, key=title, value=url)
+            p.flush(30)
             yield item
