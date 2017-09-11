@@ -11,7 +11,7 @@ topic_prefix = "stackoverflow"
 url_prefix = "http://www.stackoverflow.com"
 consumer = kafka.KafkaConsumer('*', group_id='test', bootstrap_servers=['localhost:9092'])
 
-def getPosition(hash):
+def init_hash_ring():
     hash_ring = sortedlist([])
     topics = consumer.topics()
     print topics
@@ -25,13 +25,17 @@ def getPosition(hash):
         print "No shard worker in the hash ring."
         return -1
     print str(len(hash_ring)) + " nodes in the hash ring"
+    return hash_ring
+
+hash_ring = init_hash_ring()
+
+def getPosition(hash):
     for i in range(len(hash_ring)):
         pos = hash_ring[i]
         if pos > hash:
             return pos
     print "Gonna return the first node in the hash ring"
     return hash_ring[0]
-
 
 class StackSpider(Spider):
     name = "stack"
@@ -51,8 +55,11 @@ class StackSpider(Spider):
             hashValue = hash(title)
             if (hashValue < 0):
                 hashValue = abs(hashValue)
+            print "Hash value is " + str(hashValue)
+            hashValue = hashValue % 128
             pos = getPosition(hashValue)
             topic = topic_prefix + pos
+            print "producing entry to topic " + topic
             p.produce(topic, key=title, value=url)
             p.flush(30)
             yield item
