@@ -3,27 +3,27 @@ from scrapy import Spider
 from scrapy.selector import Selector
 from stack.items import StackItem
 from confluent_kafka import Producer
-import kafka
 from blist import sortedlist
+from kazoo.client import KazooClient
+from random import randint
 
+zk = KazooClient(hosts='127.0.0.1:2181', read_only=True)
+zk.start()
 p = Producer({'bootstrap.servers': 'localhost:9092'})
 topic_prefix = "stackoverflow"
 url_prefix = "http://www.stackoverflow.com"
-consumer = kafka.KafkaConsumer('*', group_id='test', bootstrap_servers=['localhost:9092'])
 
 def init_hash_ring():
     hash_ring = sortedlist([])
-    topics = consumer.topics()
+    if zk.exists("/ContinousQuery/hashRing") is None:
+        print "No nodes are in the hash ring"
+        return hash_ring
+    print "Hash ring exists"
+    topics = zk.get_children("/ContinousQuery/hashRing")
     print topics
     for topic in topics:
         print "topic is " + topic
-        position = topic[len(topic_prefix):]
-        if position:
-            print "adding position " + position + " in the hash ring."
-            hash_ring.add(position)
-    if len(hash_ring) is 0:
-        print "No shard worker in the hash ring."
-        return -1
+        hash_ring.add(topic)
     print str(len(hash_ring)) + " nodes in the hash ring"
     return hash_ring
 
@@ -52,6 +52,9 @@ class StackSpider(Spider):
             item['url'] = question.xpath('a[@class="question-hyperlink"]/@href').extract()[0]
             title = ''.join(item['title']).strip().encode('utf-8')
             url = url_prefix + ''.join(item['url']).strip().encode('utf-8')
+            if len(hash_ring) == 0:
+                print "No nodes are in the hash ring"
+                return
             hashValue = hash(title)
             if (hashValue < 0):
                 hashValue = abs(hashValue)
