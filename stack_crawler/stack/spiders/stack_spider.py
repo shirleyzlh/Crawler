@@ -10,7 +10,7 @@ from random import randint
 zk = KazooClient(hosts='127.0.0.1:2181', read_only=True)
 zk.start()
 p = Producer({'bootstrap.servers': 'localhost:9092'})
-topic_prefix = "stackoverflow"
+topic_prefix = "stackoverflow-"
 url_prefix = "http://www.stackoverflow.com"
 
 def init_hash_ring():
